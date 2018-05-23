@@ -23,44 +23,30 @@
 					cb.call(ctx, list[a], a, list);
 				}
 			}
+		},
+		join : function(){
+			var args = Array.prototype.slice.call(arguments);
+			var joint = args[0];
+			var strings = args.slice(1, args.length);
+			return strings.join(joint);
 		}
 	};
 
 	var _ = new Toolchain();
 
-	/**Interface implementation*/
-	var $Interface = function(params){
-		this.params = params || {};
-	};
-
-	$Interface.prototype = {
-		__validateClass : function($constructor){
-			var result = true;
-
-			_.loop(this.params, function(type, name){
-				if (typeof $constructor.prototype[name] != type){
-					result = false;
-					console.error("The implementation of does not match the interface: `" + name + "` is not a `" + type + "`, it's a `" + typeof $constructor.prototype[name] + "`");
-				}
-			});
-
-			return result;
-		}
-	};
-
 	/**Class implementation*/
-	var $Class = function(name, $super, interfaces, $prototype){
+	var $Class = function(name, $superConstructor, interfaces, $prototype){
 		if (typeof name != "string"){
 			$prototype = interfaces;
-			interfaces = $super;
-			$super = name;
+			interfaces = $superConstructor;
+			$superConstructor = name;
 			name = "AnonymousClass";
 		}
 
-		if (typeof $super != "function"){
+		if (typeof $superConstructor != "function"){
 			$prototype = interfaces;
-			interfaces = $super;
-			$super = null;
+			interfaces = $superConstructor;
+			$superConstructor = null;
 		}
 
 		if (!(interfaces instanceof Array)){
@@ -68,15 +54,13 @@
 			interfaces = null;
 		}
 
-		console.log(name, $prototype, $super, interfaces);
-
-		var $class = this.__createClass(name, $prototype, $super, interfaces);
+		var $class = this.__createClass(name, $prototype, $superConstructor, interfaces);
 
 		return $class;
 	};
 
 	$Class.prototype = {
-		__createClass : function(name, $prototype, $super, interfaces){
+		__createClass : function(name, $prototype, $superConstructor, interfaces){
 			var $constructor;
 
 			if (typeof $prototype.$constructor == "function"){
@@ -90,7 +74,7 @@
 
 			$constructor = this.__renameFunction($constructor, name);
 
-			this.__setupProto($constructor, $prototype, $super, interfaces);
+			this.__setupProto(name, $constructor, $prototype, $superConstructor, interfaces);
 
 			if ($constructor.$interfaces){
 				_.loop($constructor.$interfaces, function($interface, index){
@@ -103,14 +87,18 @@
 			return $constructor;
 
 		},	
-		__setupProto : function($constructor, $prototype, $super, interfaces){
-			if ($super){
-				_.loop($super.$prototype, function(token, name){
-					this.__defineProperty($constructor.prototype, name, token);
+		__setupProto : function(name, $constructor, $prototype, $superConstructor, interfaces){
+			if ($superConstructor){
+				_.loop($superConstructor.$prototype, function(token, name){
+					if (token.static == true){
+						this.__defineProperty($constructor, name, token);
+					} else {
+						this.__defineProperty($constructor.prototype, name, token);
+					}
 				}, this);	
 
 				this.__defineProperty($constructor.prototype, "$super", {
-					value : $super,
+					value : $superConstructor,
 					enumerable : false,
 					writable : false,
 					configurable : false
@@ -141,7 +129,12 @@
 					token.value = this.__addSuper(token.value, name);
 				}
 
-				this.__defineProperty($constructor.prototype, name, token);
+				if (token.static === true){
+					this.__defineProperty($constructor, name, token);
+				} else {
+					this.__defineProperty($constructor.prototype, name, token);
+				}
+
 			}, this);	
 
 			this.__defineProperty($constructor, "$constructor", {
@@ -165,8 +158,8 @@
 				configurable : false
 			});
 		},
-		__extend : function($super, name, interfaces, $prototype){
-			return new Klass(name, $super, interfaces, $prototype);
+		__extend : function($superConstructor, name, interfaces, $prototype){
+			return new Klass(name, $superConstructor, interfaces, $prototype);
 		},	
 		__renameFunction : function(func, name){
 			return eval(["var ", name, "=", func.toString(), ";", name, ";"].join(""));
@@ -174,9 +167,9 @@
 		__addSuper(func, name){
 			var stringified = func.toString();
 			var start = stringified.split("{")[0];
-			var body = stringified.split("{")[1];
+			var body = stringified.substring(stringified.indexOf("{") + 1, stringified.lastIndexOf("}"));
 
-			body = body.split("}")[0];
+			start = start.match(/\(.*?\)/)[0];
 
 			if (!name){
 				body = [[
@@ -185,7 +178,7 @@
 					, "	  if (this.$super && typeof this.$super.$constructor == \"function\"){"
 					, "	  	   this.$super.$constructor.apply(this, args);"
 					, "	  }"
-					, "}.bind(this, args)"
+					, "}.bind(this, args);"
 				].join(""), body].join("");	
 			} else {
 				body = [[
@@ -194,11 +187,11 @@
 					, "	  if (this.$super && this.$super.$prototype && typeof this.$super.$prototype[\"" + name + "\"] == \"function\"){"
 					, "	  	   this.$super.$prototype[\"" + name + "\"].apply(this, args);"
 					, "	  }"
-					, "}.bind(this, args)"
+					, "}.bind(this, args);"
 				].join(""), body].join("");	
 			}			
 
-			return eval(["var $constructor = ", start, "{", body, "}", ";$constructor;"].join(""));		
+			return eval(["var $constructor = function", start, "{", body, "}", ";$constructor;"].join(""));		
 
 		},
 		__checkInterfacesImplementation : function(){
@@ -217,7 +210,81 @@
 		},
 	};
 
-	$Class.$Interface = $Interface;
+	/*=====================================================================*/
+	/*=====================================================================*/
+	/*=====================================================================*/
+
+
+	/**Namespace*/
+	var $Namespace = new $Class("$Namespace", {
+		$constructor : function(){},
+		content : {
+			value : {},
+			writable : false,
+			configurable : false,
+		},	
+		$import : function(path, name){
+			if (this.content[_.join(".", path, name)]){
+				return this.content[_.join(".", path, name)];
+			} else {
+				console.error(new Error("Import failed: `" + name + "` not found at `" + path + "`."));
+			}
+		},
+		$export : function(path, name, data){
+			if (this.content[_.join(".", path, name)]){
+				console.error(new Error("Export failed: `" + name + "` already exists at `" + path + "`."));
+			} else {
+				this.content[_.join(".", path, name)] = data;				
+			}
+		}
+	});
+
+	/**Interface implementation*/
+	var $Interface = new $Class("$Interface", {
+		$constructor : function(params){
+			this.params = params;
+		},
+		__validateClass : function($constructor){
+			var result = true;
+
+			_.loop(this.params, function(type, name){
+				if ((typeof $constructor.prototype[name]).match(new RegExp(type)) != null){
+					result = false;
+					console.error("The implementation of does not match the interface: `" + name + "` is not a `" + type + "`, it's a `" + typeof $constructor.prototype[name] + "`");
+				}
+			});
+
+			return result;
+		}
+	});
+
+	/**Class reimplementation using $Class*/
+	$Class = new $Class("$Class", {
+		$constructor : $Class,
+		__createClass : $Class.prototype.__createClass,
+		__setupProto : $Class.prototype.__setupProto,
+		__extend : $Class.prototype.__extend,
+		__renameFunction : $Class.prototype.__renameFunction,
+		__addSuper : $Class.prototype.__addSuper,
+		__checkInterfacesImplementation : $Class.prototype.__checkInterfacesImplementation,
+		__defineProperty : $Class.prototype.__defineProperty,
+		$Interface : {
+			value : $Interface,
+			static : true
+		},
+		$Namespace : {
+			value : $Namespace,
+			static : true
+		},
+		$namespace : {
+			value : new $Namespace,
+			static : true
+		}
+	});
+
+	
+
+	
 
 	return $Class;
     
