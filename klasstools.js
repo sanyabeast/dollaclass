@@ -59,7 +59,7 @@
             string = [(prefix || ""), string.substring(0, length), (postfix || "")].join("-");
             return string;
 		},
-		is$Class : function($constructor){
+		isDollaClass : function($constructor){
 			return $classIDs.indexOf($constructor.$$id) > -1;
 		},
 		merge : function(objA, objB, deep){
@@ -135,8 +135,8 @@
 				if ($superConstructor instanceof Array){
 					_.loop($superConstructor, function($superConstructor, index){
 
-						if (!_.is$Class($superConstructor)){
-							$superConstructor = this.__convertTo$Class($superConstructor);
+						if (!_.isDollaClass($superConstructor)){
+							$superConstructor = this.__convertToDollaClass($superConstructor);
 						}
 
 						_.loop($superConstructor.$prototype, function(token, name){
@@ -148,8 +148,8 @@
 						}, this);	
 					}, this);
 				} else {
-					if (!_.is$Class($superConstructor)){
-						$superConstructor = this.__convertTo$Class($superConstructor);
+					if (!_.isDollaClass($superConstructor)){
+						$superConstructor = this.__convertToDollaClass($superConstructor);
 					}
 
 					_.loop($superConstructor.$prototype, function(token, name){
@@ -244,9 +244,7 @@
 				var args = Array.prototype.slice.call(arguments);
 				var $super;
 
-				if (func.super){
-					this.super = func.super;
-				} else {
+				if (!func.super){
 					if (isConstructor){
 						$super = function(args){
 							if (typeof this.$super == "function" && typeof this.$super.$constructor == "function"){
@@ -257,7 +255,7 @@
 									this.$super[lastID].$constructor.apply(this, args);
 								}
 							}
-						}.bind(this, args);
+						};
 					} else {
 						$super = function(args){
 							if (this.$super && this.$super.$prototype && typeof this.$super.$prototype[name] == "function"){
@@ -269,12 +267,13 @@
 								}
 
 							}
-						}.bind(this, args);
+						};
 					}
-					
-					this.super = func.super = $super;
+				} else {
+					$super = func.super;
 				}
 				
+				this.super = func.super = $super.bind(this, args);
 
 				if (true || !isConstructor){
 					return func.apply(this, args);
@@ -305,20 +304,28 @@
 				Object.defineProperty(obj, name, value);
 			}
 		},
-		__convertTo$Class : function($constructor){
-			console.warn("$Class: some of provided constructors were not created by $Class There may be some issues.");
-			console.log($constructor);
+		__convertToDollaClass : function($constructor){
+			if (typeof $constructor == "string"){
+				return this.$namespace.$importFullPath($constructor);
+			} else if (typeof $constructor == "function"){
+				console.warn("$Class: some of provided constructors were not created by $Class There may be some issues.");
+				console.log($constructor);
 
-			var name = $constructor.toString().match(/([a-zA-Z_{1}][a-zA-Z0-9_]+)(?=\()/g);
-			if (name && name[0]) name = name[0];
+				var name = $constructor.toString().match(/([a-zA-Z_{1}][a-zA-Z0-9_]+)(?=\()/g);
+				if (name && name[0]) name = name[0];
 
-			if (name == "function") name = "ConvertedClass";
+				if (name == "function") name = "ConvertedClass";
 
-			return new $Class({
-				name : name || "ConvertedClass"
-			}, _.merge({
-				$constructor : $constructor
-			}, $constructor.prototype));
+				return new $Class({
+					name : name || "ConvertedClass"
+				}, _.merge({
+					$constructor : $constructor
+				}, $constructor.prototype));
+			} else {
+				console.warn("$Class: provided data cannot be converted to $Class");
+			}
+
+			
 		}
 	};
 
@@ -349,6 +356,12 @@
 			} else {
 				this.content[_.join(".", path, name)] = data;				
 			}
+		},
+		$importFullPath : function(fullPath){
+			var splitted = fullPath.split(".");
+			var name = splitted.pop();
+			var path = splitted.join(".");
+			return this.$import(path, name);
 		}
 	});
 
@@ -389,7 +402,7 @@
 	}, _.merge({
 		$constructor : $Class,
 		convert : {
-			value : $Class.prototype.__convertTo$Class,
+			value : $Class.prototype.__convertToDollaClass,
 			static : true
 		},
 		$Interface : {
