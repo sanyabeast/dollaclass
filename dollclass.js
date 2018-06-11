@@ -117,6 +117,20 @@
 
 			$constructor = this.__addSuper($constructor, name, true);
 
+			if (options.singleton === true){
+				var realConstrucor = $constructor;
+				var instance = null;
+
+				$constructor = function(){
+					if (instance instanceof realConstrucor){
+						return instance;
+					} else {
+						instance =  realConstrucor.apply(this, arguments);
+						return instance;
+					}
+				};
+			}
+
 			this.__setupProto(name, $constructor, $prototype, $superConstructor, interfaces);
 
 			if ($constructor.$interfaces){
@@ -275,11 +289,7 @@
 				
 				this.super = func.super = $super.bind(this, args);
 
-				if (true || !isConstructor){
-					return func.apply(this, args);
-				} else {
-					return new (Function.prototype.bind.apply(func, args));
-				}
+				return func.apply(this, args);
 
 			};
 
@@ -295,6 +305,13 @@
 		},
 		__defineProperty : function(obj, name, value){
 			if (typeof value == "function"){
+				Object.defineProperty(obj, name, {
+					value : value,
+					writable : true, 
+					configurable : true,
+				});
+			} else if (typeof data != "function" && typeof data != "undefined" && data !== null && typeof data.value == "undefined" && typeof data.get != "function" && typeof data.set != "function"){
+				console.warn(new Error("$Class: property defining warning: auto-detected first-layer property; This may cause errors"));
 				Object.defineProperty(obj, name, {
 					value : value,
 					writable : true, 
@@ -347,12 +364,12 @@
 			if (this.content[_.join(".", path, name)]){
 				return this.content[_.join(".", path, name)];
 			} else {
-				console.error(new Error("Import failed: `" + name + "` not found at `" + path + "`."));
+				console.error(new Error("$Class: Import failed: `" + name + "` not found at `" + path + "`."));
 			}
 		},
 		$export : function(path, name, data){
 			if (this.content[_.join(".", path, name)]){
-				console.error(new Error("Export failed: `" + name + "` already exists at `" + path + "`."));
+				console.error(new Error("$Class: Export failed: `" + name + "` already exists at `" + path + "`."));
 			} else {
 				this.content[_.join(".", path, name)] = data;				
 			}
@@ -379,7 +396,7 @@
 			_.loop(this.params, function(type, name){
 				if ((typeof $constructor.prototype[name]).match(new RegExp(type)) != null){
 					result = false;
-					console.error("The implementation of does not match the interface: `" + name + "` is not a `" + type + "`, it's a `" + typeof $constructor.prototype[name] + "`");
+					console.error("$Class: The implementation of does not match the interface: `" + name + "` is not a `" + type + "`, it's a `" + typeof $constructor.prototype[name] + "`");
 				}
 			});
 
