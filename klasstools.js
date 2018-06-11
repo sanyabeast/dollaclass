@@ -29,38 +29,54 @@
 			var joint = args[0];
 			var strings = args.slice(1, args.length);
 			return strings.join(joint);
+		},
+		toArray : function(data){
+			return Array.prototype.slice.call(data);
+		},
+		clone : function(data){
+			if (data instanceof Array){
+				return data.slice();
+			} else {
+				var result = {};
+				this.loop(data, function(value, key){
+					result[key] = value;
+				}, this);
+
+				return result;
+			}
+		},
+		genRandString : function(){
+			var string = "";
+
+            while (string.length < length){
+                string = string + (Math.random().toString(32).substring(3, 12));
+            }
+
+            string = [(prefix || ""), string.substring(0, length), (postfix || "")].join("-");
+            return string;
 		}
 	};
 
 	var _ = new Toolchain();
 
 	/**Class implementation*/
-	var $Class = function(name, $superConstructor, interfaces, $prototype){
-		if (typeof name != "string"){
-			$prototype = interfaces;
-			interfaces = $superConstructor;
-			$superConstructor = name;
-			name = "AnonymousClass";
+	var $Class = function(options, $prototype){
+		if (typeof $prototype == "undefined"){
+			$prototype = options;
+			options = {};
 		}
 
-		if (typeof $superConstructor != "function"){
-			$prototype = interfaces;
-			interfaces = $superConstructor;
-			$superConstructor = null;
-		}
-
-		if (!(interfaces instanceof Array)){
-			$prototype = interfaces;
-			interfaces = null;
-		}
-
-		var $class = this.__createClass(name, $prototype, $superConstructor, interfaces);
-
+		options = _.clone(options);
+		options.name = options.name || _.genRandString("AnonymousClass");
+		var $class = this.__createClass(options, $prototype);
 		return $class;
 	};
 
 	$Class.prototype = {
-		__createClass : function(name, $prototype, $superConstructor, interfaces){
+		__createClass : function(options, $prototype){
+			var name = options.name;
+			var $superConstructor = options.extends || null;
+			var interfaces = options.interfaces || null;
 			var $constructor;
 
 			if (typeof $prototype.$constructor == "function"){
@@ -87,13 +103,27 @@
 		},	
 		__setupProto : function(name, $constructor, $prototype, $superConstructor, interfaces){
 			if ($superConstructor){
-				_.loop($superConstructor.$prototype, function(token, name){
-					if (token.static == true){
-						this.__defineProperty($constructor, name, token);
-					} else {
+
+				if ($superConstructor instanceof Array){
+					_.loop($superConstructor, function($superConstructor, index){
+						_.loop($superConstructor.$prototype, function(token, name){
+							console.log(token, name);
+							if (token.static == true){
+								this.__defineProperty($constructor, name, token);
+							}
+
+							this.__defineProperty($constructor.prototype, name, token);
+						}, this);	
+					}, this);
+				} else {
+					_.loop($superConstructor.$prototype, function(token, name){
+						if (token.static == true){
+							this.__defineProperty($constructor, name, token);
+						} 
+
 						this.__defineProperty($constructor.prototype, name, token);
-					}
-				}, this);	
+					}, this);
+				}
 
 				this.__defineProperty($constructor.prototype, "$super", {
 					value : $superConstructor,
@@ -101,6 +131,13 @@
 					writable : false,
 					configurable : false
 				});
+
+				this.__defineProperty($constructor.prototype, "$extends", {
+					value : $superConstructor,
+					enumerable : false,
+					writable : false,
+					configurable : false
+				});	
 			}	
 
 			if (interfaces){
@@ -129,9 +166,9 @@
 
 				if (token.static === true){
 					this.__defineProperty($constructor, name, token);
-				} else {
-					this.__defineProperty($constructor.prototype, name, token);
-				}
+				} 
+
+				this.__defineProperty($constructor.prototype, name, token);
 
 			}, this);	
 
@@ -143,6 +180,13 @@
 			});
 
 			this.__defineProperty($constructor, "$name", {
+				value : name,
+				enumerable : false,
+				writable : false,
+				configurable : false
+			});
+
+			this.__defineProperty($constructor.prototype, "$name", {
 				value : name,
 				enumerable : false,
 				writable : false,
@@ -164,27 +208,42 @@
 				var args = Array.prototype.slice.call(arguments);
 				var $super;
 
-				if (isConstructor){
-					$super = function(args){
-						if (this.$super && typeof this.$super.$constructor == "function"){
-							this.$super.$constructor.apply(this, args);
-						}
-					}.bind(this, args);
+				if (func.super){
+					this.super = func.super;
 				} else {
-					$super = function(args){
-						if (this.$super && this.$super.$prototype && typeof this.$super.$prototype[name] == "function"){
-							this.$super.$prototype[name].apply(this, args);
-						}
-					}.bind(this, args);
-				}
+					if (isConstructor){
+						$super = function(args){
+							if (typeof this.$super == "function" && typeof this.$super.$constructor == "function"){
+								this.$super.$constructor.apply(this, args);
+							} else if (this.$super instanceof Array){
+								var lastID = this.$super.length - 1;
+								if (typeof this.$super[lastID] == "function" && typeof this.$super[lastID].$constructor == "function"){
+									this.$super[lastID].$constructor.apply(this, args);
+								}
+							}
+						}.bind(this, args);
+					} else {
+						$super = function(args){
+							if (this.$super && this.$super.$prototype && typeof this.$super.$prototype[name] == "function"){
+								this.$super.$prototype[name].apply(this, args);
+							} else if (this.$super instanceof Array){
+								var lastID = this.$super.length - 1;
+								if (this.$super[lastID] && this.$super[lastID].$prototype && typeof this.$super[lastID].$prototype[name] == "function"){
+									this.$super[lastID].$prototype[name].apply(this, args);
+								}
 
-				var newArgs = args.slice();
-				newArgs.push($super);
+							}
+						}.bind(this, args);
+					}
+					
+					this.super = func.super = $super;
+				}
+				
 
 				if (true || !isConstructor){
-					return func.apply(this, newArgs);
+					return func.apply(this, args);
 				} else {
-					return new (Function.prototype.bind.apply(func, newArgs));
+					return new (Function.prototype.bind.apply(func, args));
 				}
 
 			};
@@ -214,10 +273,10 @@
 	/*=====================================================================*/
 	/*=====================================================================*/
 	/*=====================================================================*/
-
-
 	/**Namespace*/
-	var $Namespace = new $Class("$Namespace", {
+	var $Namespace = new $Class({
+		name : "$Namespace"
+	}, {
 		$constructor : function(){},
 		content : {
 			value : {},
@@ -241,7 +300,9 @@
 	});
 
 	/**Interface implementation*/
-	var $Interface = new $Class("$Interface", {
+	var $Interface = new $Class({
+		name : "$Interface"
+	}, {
 		$constructor : function(params){
 			this.params = params;
 		},
@@ -260,7 +321,9 @@
 	});
 
 	/**Class reimplementation using $Class*/
-	$Class = new $Class("$Class", {
+	$Class = new $Class({
+		name : "$Class"
+	}, {
 		$constructor : $Class,
 		__createClass : $Class.prototype.__createClass,
 		__setupProto : $Class.prototype.__setupProto,
@@ -282,7 +345,9 @@
 		}
 	});
 
-	
+	$Class.$namespace.$export("$Class", "$Class", $Class);
+	$Class.$namespace.$export("$Class", "$Interface", $Interface);
+	$Class.$namespace.$export("$Class", "$Namespace", $Namespace);
 
 	
 
