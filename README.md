@@ -27,11 +27,11 @@ var Creature = new $Class("Creature", {
 ```javascript
 var Dog = new $Class("Dog", Creature, {
     $constructor : function(name, age){
-        $super();
+        this.super();
         this.age = age;
     },
     sayHello : function(){
-        $super();
+        this.super();
         alert("And by the way, I am " + this.age + " years old!");
     },
     sayGoodbye : function(){
