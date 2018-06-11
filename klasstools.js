@@ -10,6 +10,10 @@
     }
 }(this, function(){
 
+	var $classIDs = [];
+
+	window.k = $classIDs;
+
 	/**Toolchain*/
 	var Toolchain = function(){};
 	Toolchain.prototype = {
@@ -45,7 +49,7 @@
 				return result;
 			}
 		},
-		genRandString : function(){
+		genRandString : function(length, prefix, postfix){
 			var string = "";
 
             while (string.length < length){
@@ -54,6 +58,17 @@
 
             string = [(prefix || ""), string.substring(0, length), (postfix || "")].join("-");
             return string;
+		},
+		is$Class : function($constructor){
+			return $classIDs.indexOf($constructor.$$id) > -1;
+		},
+		merge : function(objA, objB, deep){
+			var result = this.clone(objA);
+			for (var k in objB){
+				result[k] = objB[k];
+			}
+
+			return result;
 		}
 	};
 
@@ -69,6 +84,20 @@
 		options = _.clone(options);
 		options.name = options.name || _.genRandString("AnonymousClass");
 		var $class = this.__createClass(options, $prototype);
+
+		if (options.namespace){
+			$Class.$namespace.$export(options.namespace, options.name, $class);
+		}
+
+		Object.defineProperty($class, "$$id", {
+			value : _.genRandString(32, options.name, "class"),
+			enumerable : false,
+			writable : false,
+			configurable : false
+		});
+
+		$classIDs.push($class.$$id);
+
 		return $class;
 	};
 
@@ -103,11 +132,14 @@
 		},	
 		__setupProto : function(name, $constructor, $prototype, $superConstructor, interfaces){
 			if ($superConstructor){
-
 				if ($superConstructor instanceof Array){
 					_.loop($superConstructor, function($superConstructor, index){
+
+						if (!_.is$Class($superConstructor)){
+							$superConstructor = this.__convertTo$Class($superConstructor);
+						}
+
 						_.loop($superConstructor.$prototype, function(token, name){
-							console.log(token, name);
 							if (token.static == true){
 								this.__defineProperty($constructor, name, token);
 							}
@@ -116,6 +148,10 @@
 						}, this);	
 					}, this);
 				} else {
+					if (!_.is$Class($superConstructor)){
+						$superConstructor = this.__convertTo$Class($superConstructor);
+					}
+
 					_.loop($superConstructor.$prototype, function(token, name){
 						if (token.static == true){
 							this.__defineProperty($constructor, name, token);
@@ -248,8 +284,9 @@
 
 			};
 
-			wrapped = eval(["var ", name, "=", wrapped.toString(), ";", name, ";"].join(""));
-			wrapped.isSuper = true;
+			if (isConstructor){
+				wrapped = eval(["var ", name, "=", wrapped.toString(), ";", name, ";"].join(""));
+			}
 
 			return wrapped;
 
@@ -268,6 +305,21 @@
 				Object.defineProperty(obj, name, value);
 			}
 		},
+		__convertTo$Class : function($constructor){
+			console.warn("$Class: some of provided constructors were not created by $Class There may be some issues.");
+			console.log($constructor);
+
+			var name = $constructor.toString().match(/([a-zA-Z_{1}][a-zA-Z0-9_]+)(?=\()/g);
+			if (name && name[0]) name = name[0];
+
+			if (name == "function") name = "ConvertedClass";
+
+			return new $Class({
+				name : name || "ConvertedClass"
+			}, _.merge({
+				$constructor : $constructor
+			}, $constructor.prototype));
+		}
 	};
 
 	/*=====================================================================*/
@@ -275,7 +327,8 @@
 	/*=====================================================================*/
 	/**Namespace*/
 	var $Namespace = new $Class({
-		name : "$Namespace"
+		name : "$Namespace",
+		// namespace : "$Class"
 	}, {
 		$constructor : function(){},
 		content : {
@@ -301,7 +354,8 @@
 
 	/**Interface implementation*/
 	var $Interface = new $Class({
-		name : "$Interface"
+		name : "$Interface",
+		// namespace : "$Class"
 	}, {
 		$constructor : function(params){
 			this.params = params;
@@ -320,19 +374,30 @@
 		}
 	});
 
+	/**Toolchain reimplementation*/
+	var Toolchain = new $Class({
+		name : "Toolchain",
+		// namespace : "$Class",
+	}, _.merge({
+		$constructor : Toolchain,
+	}, Toolchain.prototype));
+
 	/**Class reimplementation using $Class*/
 	$Class = new $Class({
-		name : "$Class"
-	}, {
+		name : "$Class",
+		// namespace : "$Class"
+	}, _.merge({
 		$constructor : $Class,
-		__createClass : $Class.prototype.__createClass,
-		__setupProto : $Class.prototype.__setupProto,
-		__extend : $Class.prototype.__extend,
-		__addSuper : $Class.prototype.__addSuper,
-		__checkInterfacesImplementation : $Class.prototype.__checkInterfacesImplementation,
-		__defineProperty : $Class.prototype.__defineProperty,
+		convert : {
+			value : $Class.prototype.__convertTo$Class,
+			static : true
+		},
 		$Interface : {
 			value : $Interface,
+			static : true
+		},
+		_ : {
+			value : new Toolchain,
 			static : true
 		},
 		$Namespace : {
@@ -343,13 +408,7 @@
 			value : new $Namespace,
 			static : true
 		}
-	});
-
-	$Class.$namespace.$export("$Class", "$Class", $Class);
-	$Class.$namespace.$export("$Class", "$Interface", $Interface);
-	$Class.$namespace.$export("$Class", "$Namespace", $Namespace);
-
-	
+	}, $Class.prototype));
 
 	return $Class;
     
