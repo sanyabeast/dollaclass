@@ -254,6 +254,11 @@
 			return new Klass(name, $superConstructor, interfaces, $prototype);
 		},	
 		__addSuper(func, name, isConstructor){
+
+			if (_.isDollaClass(func)){
+				return func;
+			}
+
 			var wrapped = function(){
 				var args = Array.prototype.slice.call(arguments);
 				var $super;
