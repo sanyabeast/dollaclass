@@ -1,8 +1,8 @@
 {
-  "name": "klasstools",
-  "version": "1.0.1",
+  "name": "dollaclass",
+  "version": "1.0.2",
   "main": "index.js",
-  "repository": "https://github.com/sanyabeast/klasstools.git",
+  "repository": "https://github.com/sanyabeast/dollaclass.git",
   "author": "sanyabeast <a.gvrnsk@gmail.com>",
   "license": "MIT"
 }

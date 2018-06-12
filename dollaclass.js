@@ -287,7 +287,14 @@
 					$super = func.super;
 				}
 				
-				this.super = func.super = $super.bind(this, args);
+				func.super = $super.bind(this, args);
+
+				Object.defineProperty(this, "super", {
+					value : func.super,
+					enumerable : false,
+					writable : true,
+					configurable : true
+				});
 
 				return func.apply(this, args);
 
