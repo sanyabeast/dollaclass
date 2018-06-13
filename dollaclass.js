@@ -18,11 +18,11 @@
 	var Toolchain = function(){};
 	Toolchain.prototype = {
 		loop : function(list, cb, ctx){
-			if (list instanceof window.Array){
+			if (Array.isArray(list)){
 				for (var a = 0, l = list.length; a < l; a++){
 					cb.call(ctx, list[a], a, list);
 				}
-			} else if (list instanceof window.Object){
+			} else {
 				for (var a in list){
 					cb.call(ctx, list[a], a, list);
 				}
@@ -46,6 +46,7 @@
 					result[key] = value;
 				}, this);
 
+
 				return result;
 			}
 		},
@@ -56,7 +57,7 @@
                 string = string + (Math.random().toString(32).substring(3, 12));
             }
 
-            string = [(prefix || ""), string.substring(0, length), (postfix || "")].join("-");
+            string = [(prefix || ""), string.substring(0, length), (postfix || "")].join("");
             return string;
 		},
 		isDollaClass : function($constructor){
@@ -80,6 +81,7 @@
 			$prototype = options;
 			options = {};
 		}
+
 
 		options = _.clone(options);
 		options.name = options.name || _.genRandString("AnonymousClass");
@@ -254,11 +256,6 @@
 			return new Klass(name, $superConstructor, interfaces, $prototype);
 		},	
 		__addSuper(func, name, isConstructor){
-
-			if (_.isDollaClass(func)){
-				return func;
-			}
-
 			var wrapped = function(){
 				var args = Array.prototype.slice.call(arguments);
 				var $super;
@@ -292,14 +289,7 @@
 					$super = func.super;
 				}
 				
-				func.super = $super.bind(this, args);
-
-				Object.defineProperty(this, "super", {
-					value : func.super,
-					enumerable : false,
-					writable : true,
-					configurable : true
-				});
+				this.super = func.super = $super.bind(this, args);
 
 				return func.apply(this, args);
 
