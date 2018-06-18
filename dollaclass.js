@@ -231,12 +231,11 @@
 				if (!func.super){
 					if (isConstructor){
 						$super = function(args){
-							if (typeof this.$super == "function" && typeof this.$super.$constructor == "function"){
-								this.$super.$constructor.apply(this, args);
+							if (typeof this.$super == "function"){
+								this.$super.apply(this, args);
 							} else if (Array.isArray(this.$super)){
-								var lastID = this.$super.length - 1;
-								if (typeof this.$super[lastID] == "function" && typeof this.$super[lastID].$constructor == "function"){
-									this.$super[lastID].$constructor.apply(this, args);
+								for (var a = 0, l = this.$super.length; a < l; a++){
+									this.$super[a].apply(this, args);
 								}
 							}
 						};
@@ -253,13 +252,14 @@
 							}
 						};
 					}
+
+					func.super = $super;
 				} else {
 					$super = func.super;
 				}
 				
-				func.super = $super.bind(this, args);
 				Object.defineProperty(this, "super", {
-					value : func.super,
+					value : $super.bind(this, args),
 					enumerable : false,
 					writable : true,
 					configurable : true
