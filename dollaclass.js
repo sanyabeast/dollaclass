@@ -147,72 +147,62 @@
 
 		},	
 		__setupProto : function(name, $constructor, $prototype, $superConstructor, interfaces){
+			var $processedPrototype = {};
+
 			if ($superConstructor){
-				if ($superConstructor instanceof Array){
-					_.loop($superConstructor, function($superConstructor, index){
-
-						if (!_.isDollaClass($superConstructor)){
-							$superConstructor = this.__convertToDollaClass($superConstructor);
-						}
-
+				if (Array.isArray($superConstructor)){
+					_.loop($superConstructor, function($superConstructor){
 						_.loop($superConstructor.$prototype, function(token, name){
-							if (token.static == true){
-								this.__defineProperty($constructor, name, token);
-							}
-
-							this.__defineProperty($constructor.prototype, name, token);
-						}, this);	
-					}, this);
+							$processedPrototype[name] = token;
+						});
+					});
 				} else {
-					if (!_.isDollaClass($superConstructor)){
-						$superConstructor = this.__convertToDollaClass($superConstructor);
-					}
-
 					_.loop($superConstructor.$prototype, function(token, name){
-						if (token.static == true){
-							this.__defineProperty($constructor, name, token);
-						} 
-
-						this.__defineProperty($constructor.prototype, name, token);
-					}, this);
+						$processedPrototype[name] = token;
+					});
 				}
 
-				this.__defineProperty($constructor.prototype, "$super", {
+				$processedPrototype.$super = {
 					value : $superConstructor,
-					enumerable : false,
-					writable : false,
-					configurable : false
-				});
-
-				this.__defineProperty($constructor.prototype, "$extends", {
-					value : $superConstructor,
-					enumerable : false,
-					writable : false,
-					configurable : false
-				});	
-			}	
-
-			if (interfaces){
-				this.__defineProperty($constructor, "$interfaces", {
-					value : interfaces,
-					enumerable : false,
-					writable : false,
-					configurable : false
-				});
+					static : true,
+					nowrap : true,
+					configurable : false,
+					writable : false
+				}
 			}
 
+			_.loop($prototype, function(token, name){
+				$processedPrototype[name] = token;
+			});
+
 			this.__defineProperty($constructor, "$prototype", {
-				value : $prototype,
+				value : $processedPrototype,
 				enumerable : false,
 				writable : false,
 				configurable : false
 			});
 
+			if (interfaces){
+				$processedPrototype.$interfaces = {
+					static : true,
+					value :  interfaces,
+					writable : false,
+					configurable : false
+				};
+			}
 
-			_.loop($prototype, function(token, name, list){
-				if (typeof token == "function"){
+			$processedPrototype.$name = {
+				static : true,
+				value : name, 
+				writable : false,
+				configurable : false
+			};
+
+
+			_.loop($processedPrototype, function(token, name, list){
+				if (typeof token == "function" && !_.isDollaClass(token)){
 					token = list[name] = this.__addSuper(token, name, false);
-				} else if (typeof token.value == "function"){
+				} else if (typeof token.value == "function" && !_.isDollaClass(token.value)){
 					token.value = this.__addSuper(token.value, name, false);
 				}
 
@@ -221,29 +211,7 @@
 				} 
 
 				this.__defineProperty($constructor.prototype, name, token);
-
 			}, this);	
-
-			this.__defineProperty($constructor, "$constructor", {
-				value : $constructor,
-				enumerable : false,
-				writable : false,
-				configurable : false
-			});
-
-			this.__defineProperty($constructor, "$name", {
-				value : name,
-				enumerable : false,
-				writable : false,
-				configurable : false
-			});
-
-			this.__defineProperty($constructor.prototype, "$name", {
-				value : name,
-				enumerable : false,
-				writable : false,
-				configurable : false
-			});
 
 			this.__defineProperty($constructor, "extend", {
 				value : this.__extend.bind(this, $constructor),
@@ -265,7 +233,7 @@
 						$super = function(args){
 							if (typeof this.$super == "function" && typeof this.$super.$constructor == "function"){
 								this.$super.$constructor.apply(this, args);
-							} else if (this.$super instanceof Array){
+							} else if (Array.isArray(this.$super)){
 								var lastID = this.$super.length - 1;
 								if (typeof this.$super[lastID] == "function" && typeof this.$super[lastID].$constructor == "function"){
 									this.$super[lastID].$constructor.apply(this, args);
@@ -276,7 +244,7 @@
 						$super = function(args){
 							if (this.$super && this.$super.$prototype && typeof this.$super.$prototype[name] == "function"){
 								this.$super.$prototype[name].apply(this, args);
-							} else if (this.$super instanceof Array){
+							} else if (Array.isArray(this.$super)){
 								var lastID = this.$super.length - 1;
 								if (this.$super[lastID] && this.$super[lastID].$prototype && typeof this.$super[lastID].$prototype[name] == "function"){
 									this.$super[lastID].$prototype[name].apply(this, args);
@@ -439,8 +407,16 @@
 		$namespace : {
 			value : new $Namespace,
 			static : true
-		}
+		},
 	}, $Class.prototype));
+
+	$Class.export = function(){
+		return this.$namespace.$export.apply(this.$namespace, arguments);
+	};
+
+	$Class.import = function(){
+		return this.$namespace.$import.apply(this.$namespace, arguments);
+	};
 
 	return $Class;
     
