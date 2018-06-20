@@ -152,14 +152,20 @@
 			if ($superConstructor){
 				if (Array.isArray($superConstructor)){
 					_.loop($superConstructor, function($superConstructor){
+						if (!_.isDollaClass($superConstructor)){
+							$superConstructor = this.__convertToDollaClass($superConstructor);
+						}
 						_.loop($superConstructor.$prototype, function(token, name){
 							$processedPrototype[name] = token;
-						});
-					});
+						}, this);
+					}, this);
 				} else {
+					if (!_.isDollaClass($superConstructor)){
+						$superConstructor = this.__convertToDollaClass($superConstructor);
+					}
 					_.loop($superConstructor.$prototype, function(token, name){
 						$processedPrototype[name] = token;
-					});
+					}, this);
 				}
 
 				$processedPrototype.$super = {
@@ -302,7 +308,6 @@
 				return this.$namespace.$importFullPath($constructor);
 			} else if (typeof $constructor == "function"){
 				console.warn("$Class: some of provided constructors were not created by $Class There may be some issues.");
-				console.log($constructor);
 
 				var name = $constructor.toString().match(/([a-zA-Z_{1}][a-zA-Z0-9_]+)(?=\()/g);
 				if (name && name[0]) name = name[0];
