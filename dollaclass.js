@@ -70,6 +70,16 @@
 			}
 
 			return result;
+		},
+		decompose : function(object){
+			var result = {};
+			var propNames = Object.getOwnPropertyNames(object);
+
+			this.loop(propNames, function(key){
+				result[key] = Object.getOwnPropertyDescriptor(object, key);
+			}, this);	
+
+			return result;
 		}
 	};
 
@@ -318,9 +328,14 @@
 					name : name || "ConvertedClass"
 				}, _.merge({
 					$constructor : $constructor
-				}, $constructor.prototype));
+				}, _.decompose($constructor.prototype)));
+			} else if (typeof $constructor == "object"){
+				return new $Class({
+					name : name || "ConvertedClass"
+				}, _.decompose($constructor));
 			} else {
 				console.warn("$Class: provided data cannot be converted to $Class");
+				
 			}
 
 			
