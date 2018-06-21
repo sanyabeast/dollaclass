@@ -80,6 +80,48 @@
 			}, this);	
 
 			return result;
+		},
+		getDescriptor : function(object, key){
+			return Object.getOwnPropertyDescriptor(object, key);
+		},
+		allowedDescriptorOptions : {
+			value : {
+				value : true,
+				get : true,
+				set : true,
+				enumerable : true,
+				configurable : true,
+				writable : true
+			}
+		},
+		isDescriptor : function(prop){
+			var isObject = (typeof prop == "object" && !Array.isArray(prop) && prop !== null);
+			var isDescriptor = isObject;
+			
+			if (isObject){
+				this.loop(prop, function(value, key){
+					if (!this.allowedDescriptorOptions[key]){
+						isDescriptor = false;
+					}
+				}, this);
+			}
+
+			return isDescriptor && (typeof prop.value != "undefined" || typeof prop.get == "function" || typeof prop.set == "function");
+		},
+		expand : function(prototype){
+			var expanded = {};
+
+			this.loop(prototype, function(value, key){
+
+				if (!this.isDescriptor(value)){
+					expanded[key] = this.getDescriptor(prototype, key);
+				} else {
+					expanded[key] = value;
+				}
+
+			}, this);
+
+			return expanded;
 		}
 	};
 
