@@ -462,6 +462,12 @@
 			value : new $Namespace,
 			static : true
 		},
+		$setInstanceOf : {
+			value : function(target, source){
+				target.prototype.__proto__ = source.prototype;
+			},
+			static : true
+		}
 	}, $Class.prototype));
 
 	$Class.export = function(){
