@@ -12,6 +12,21 @@
 
 	var $classIDs = [];
 
+	var decomposeExclude = [
+		"constructor",
+		"hasOwnProperty",
+		"isPrototypeOf",
+		"propertyIsEnumerable",
+		"toLocaleString",
+		"toString",
+		"valueOf",
+		"__defineGetter__",
+		"__defineSetter__",
+		"__lookupGetter__",
+		"__lookupSetter__",
+		"__proto__",
+	];
+
 	window.k = $classIDs;
 
 	/**Toolchain*/
@@ -63,8 +78,8 @@
 		isDollaClass : function($constructor){
 			return $classIDs.indexOf($constructor.$$id) > -1;
 		},
-		merge : function(objA, objB, deep){
-			var result = this.clone(objA);
+		merge : function(objA, objB, deep, noClone){
+			var result = noClone === true ? objA : this.clone(objA);
 			for (var k in objB){
 				result[k] = objB[k];
 			}
@@ -75,8 +90,14 @@
 			var result = {};
 			var propNames = Object.getOwnPropertyNames(object);
 
+			if (object.__proto__){
+				result = this.merge(result, this.decompose(object.__proto__), false, true);
+			}
+
 			this.loop(propNames, function(key){
-				result[key] = Object.getOwnPropertyDescriptor(object, key);
+				if (decomposeExclude.indexOf(key) < 0){
+					result[key] = Object.getOwnPropertyDescriptor(object, key);					
+				}
 			}, this);	
 
 			return result;
@@ -84,45 +105,6 @@
 		getDescriptor : function(object, key){
 			return Object.getOwnPropertyDescriptor(object, key);
 		},
-		allowedDescriptorOptions : {
-			value : {
-				value : true,
-				get : true,
-				set : true,
-				enumerable : true,
-				configurable : true,
-				writable : true
-			}
-		},
-		isDescriptor : function(prop){
-			var isObject = (typeof prop == "object" && !Array.isArray(prop) && prop !== null);
-			var isDescriptor = isObject;
-			
-			if (isObject){
-				this.loop(prop, function(value, key){
-					if (!this.allowedDescriptorOptions[key]){
-						isDescriptor = false;
-					}
-				}, this);
-			}
-
-			return isDescriptor && (typeof prop.value != "undefined" || typeof prop.get == "function" || typeof prop.set == "function");
-		},
-		expand : function(prototype){
-			var expanded = {};
-
-			this.loop(prototype, function(value, key){
-
-				if (!this.isDescriptor(value)){
-					expanded[key] = this.getDescriptor(prototype, key);
-				} else {
-					expanded[key] = value;
-				}
-
-			}, this);
-
-			return expanded;
-		}
 	};
 
 	var _ = new Toolchain();
@@ -366,11 +348,15 @@
 
 				if (name == "function") name = "ConvertedClass";
 
+				var description = _.merge({
+					$constructor : $constructor
+				}, _.decompose($constructor.prototype));
+
+				console.log($constructor, description);
+
 				return new $Class({
 					name : name || "ConvertedClass"
-				}, _.merge({
-					$constructor : $constructor
-				}, _.decompose($constructor.prototype)));
+				}, description);
 			} else if (typeof $constructor == "object"){
 				return new $Class({
 					name : name || "ConvertedClass"
