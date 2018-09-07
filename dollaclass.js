@@ -299,7 +299,13 @@
 				}
 				
 				Object.defineProperty(this, "super", {
-					value : $super.bind(this, args),
+					value : function(){
+						if (arguments.length > 0){
+							$super.call(this, arguments);
+						} else {
+							$super.call(this, args);
+						}
+					}.bind(this),
 					enumerable : false,
 					writable : true,
 					configurable : true
