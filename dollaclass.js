@@ -265,6 +265,7 @@
 		},	
 		__addSuper(func, name, isConstructor){
 			var wrapped = function(){
+				"use strict";
 				var args = Array.prototype.slice.call(arguments);
 				var $super;
 
