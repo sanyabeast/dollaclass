@@ -359,8 +359,6 @@
 					$constructor : $constructor
 				}, _.decompose($constructor.prototype));
 
-				console.log($constructor, description);
-
 				return new $Class({
 					name : name || "ConvertedClass"
 				}, description);
