@@ -348,7 +348,7 @@
 			if (typeof $constructor == "string"){
 				return this.$namespace.$importFullPath($constructor);
 			} else if (typeof $constructor == "function"){
-				console.warn("$Class: some of provided constructors were not created by $Class There may be some issues.");
+				// console.warn("$Class: some of provided constructors were not created by $Class There may be some issues.");
 
 				var name = $constructor.toString().match(/([a-zA-Z_{1}][a-zA-Z0-9_]+)(?=\()/g);
 				if (name && name[0]) name = name[0];
