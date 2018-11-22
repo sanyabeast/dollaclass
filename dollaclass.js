@@ -484,10 +484,9 @@
 
 				if (Array.isArray(instance.$super)){
 					_.loop(instance.$super, function(superConstructor, index){
-						if (superConstructor.$name == className){
+						if (superConstructor.$name == className || $Class.isInstanceOf(superConstructor, className)){
 							result = true;
 							return true;
-							
 						}
 					});
 				} else if (typeof instance.$super == "function"){
