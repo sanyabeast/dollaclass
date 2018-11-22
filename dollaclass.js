@@ -289,10 +289,19 @@
 							if (this.$super && this.$super.$prototype && typeof this.$super.$prototype[name] == "function"){
 								this.$super.$prototype[name].apply(this, args);
 							} else if (Array.isArray(this.$super)){
-								var lastID = this.$super.length - 1;
-								if (this.$super[lastID] && this.$super[lastID].$prototype && typeof this.$super[lastID].$prototype[name] == "function"){
-									this.$super[lastID].$prototype[name].apply(this, args);
-								}
+
+								_.loop(this.$super, function($super, index){
+
+									if ($super.$prototype && $super.$prototype[name] == "function"){
+										$super.$prototype[name].apply(this, args);
+									}
+
+								});
+
+								// var lastID = this.$super.length - 1;
+								// if (this.$super[lastID] && this.$super[lastID].$prototype && typeof this.$super[lastID].$prototype[name] == "function"){
+								// 	this.$super[lastID].$prototype[name].apply(this, args);
+								// }
 
 							}
 						};
