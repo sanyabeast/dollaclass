@@ -35,11 +35,15 @@
 		loop : function(list, cb, ctx){
 			if (Array.isArray(list)){
 				for (var a = 0, l = list.length; a < l; a++){
-					cb.call(ctx, list[a], a, list);
+					if (cb.call(ctx, list[a], a, list)){
+						break;
+					}
 				}
 			} else {
 				for (var a in list){
-					cb.call(ctx, list[a], a, list);
+					if (cb.call(ctx, list[a], a, list)){
+						break;
+					}
 				}
 			}
 		},
@@ -372,7 +376,7 @@
 			}
 
 			
-		}
+		},
 	};
 
 	/*=====================================================================*/
@@ -472,6 +476,27 @@
 				target.prototype.__proto__ = source.prototype;
 			},
 			static : true
+		},
+		isInstanceOf : {
+			static : true,
+			value : function(instance, className){
+				var result = false;
+
+				if (Array.isArray(instance.$super)){
+					_.loop(instance.$super, function(superConstructor, index){
+						if (superConstructor.$name == className){
+							result = true;
+							return true;
+							
+						}
+					});
+				} else if (typeof instance.$super == "function"){
+					result = instance.$super.$name == className;
+				}
+
+
+				return result;
+			}
 		}
 	}, $Class.prototype));
 
