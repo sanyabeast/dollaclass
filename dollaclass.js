@@ -271,11 +271,12 @@
 			var wrapped = function(){
 				"use strict";
 				var args = Array.prototype.slice.call(arguments);
-				var $super;
+				var $super;				
 
 				if (!func.super){
 					if (isConstructor){
-						$super = function(args){
+						$super = function(){
+							var args = this.$args;
 							if (typeof this.$super == "function"){
 								this.$super.apply(this, args);
 							} else if (Array.isArray(this.$super)){
@@ -286,43 +287,37 @@
 						};
 					} else {
 						$super = function(args){
+							var args = this.$args;
+
 							if (this.$super && this.$super.$prototype && typeof this.$super.$prototype[name] == "function"){
 								this.$super.$prototype[name].apply(this, args);
 							} else if (Array.isArray(this.$super)){
 
 								_.loop(this.$super, function($super, index){
-
 									if ($super.$prototype && $super.$prototype[name] == "function"){
 										$super.$prototype[name].apply(this, args);
 									}
-
 								});
-
-								// var lastID = this.$super.length - 1;
-								// if (this.$super[lastID] && this.$super[lastID].$prototype && typeof this.$super[lastID].$prototype[name] == "function"){
-								// 	this.$super[lastID].$prototype[name].apply(this, args);
-								// }
 
 							}
 						};
 					}
 
 					func.super = $super;
-				} else {
-					$super = func.super;
 				}
 				
+				Object.defineProperty(this, "$args", {
+					value: args,
+					enumerable: false,
+					writable: true,
+					configurable: true
+				});
+
 				Object.defineProperty(this, "super", {
-					value : function(){
-						if (arguments.length > 0){
-							$super.call(this, arguments);
-						} else {
-							$super.call(this, args);
-						}
-					}.bind(this),
-					enumerable : false,
-					writable : true,
-					configurable : true
+					value: func.super,
+					enumerable: false,
+					writable: true,
+					configurable: true
 				});
 
 				return func.apply(this, args);
