@@ -281,7 +281,11 @@
 								this.$super.apply(this, args);
 							} else if (Array.isArray(this.$super)){
 								for (var a = 0, l = this.$super.length; a < l; a++){
-									this.$super[a].apply(this, args);
+									try {
+										this.$super[a].apply(this, args);
+									} catch (err){
+										console.warn(err.message)
+									}
 								}
 							}
 						};
